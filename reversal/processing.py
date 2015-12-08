@@ -1,55 +1,49 @@
-import csv, re
+"""
+processing results from finance APIs
+"""
+
+import csv
+import re
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Google Finance API example
 # https://www.google.com/finance/getprices?q=2330&x=TPE&i=3600&p=10d&f=d,c,h,l,o,v
 
-def read_history (fn):
-    '''
-    @param str filename
-    @return list parsed csv
-    '''    
-    return list(csv.reader(open(fn, 'r')))
+def process_google_finance_history(gf_history_file):
+    """
+    Process a read stock history
 
-def process (raw):
-    '''
-    @param list parsed csv
-    '''
+    Args:
+        gf_history_file: the path to the google finance history csv file
+
+    Returns:
+        A numpy array
+    """
+
     interval = 86400
-    timestamp = -1
-    offset = 0
-    for i in range(len(raw)):
-        if len(raw[i]) is 0: continue
-        if raw[i][0].startswith('INTERVAL='):
-            interval = int(raw[i][0].split('INTERVAL=')[-1])
-        # get time info
-        if re.findall(r'^[a0-9]', raw[i][0]):
-            _date, _close , _high, _low, _open, _volume = raw[i]
-            # process date info
-            if _date.startswith('a'):
-                # starts with 'a', update absolute timestamp (1133933400.0)
-                current_timestamp = timestamp = float(_date.split('a')[-1])
+    timestamp = None
+    current_timestamp = None
+    processed = []
+
+    for row in csv.reader(open(gf_history_file, 'r')):
+        if len(row) is 0:
+            continue
+        if row[0].startswith('INTERVAL='):
+            interval = int(row[0].split('INTERVAL=')[-1])
+        if re.findall(r'^[a0-9]', row[0]):
+            date = row[0]
+            # absolute timestamp
+            if date.startswith('a'):
+                current_timestamp = timestamp = float(date.split('a')[-1])
+            # relative offset
             else:
-                # starts with number, in a relative format
-                offset = int(_date)
+                offset = int(date)
                 current_timestamp = timestamp + offset * interval
-            ## update
-            raw[i][0] = current_timestamp
-            raw[i][1:] = list(map(float, raw[i][1:]))
-
-    return np.array(raw)
-
-def plot (data):
-    plt.plot(data[0], y)
-
-
+            row[0] = current_timestamp
+            row[1:] = [float(value) for value in row[1:]]
+            processed.append(row)
+    return np.array(processed)
 
 if __name__ == '__main__':
 
-    raw = read_history('2330')
-    process(raw)
-
-
-
-
+    process_google_finance_history('data/2330')
